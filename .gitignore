@@ -1,0 +1,48 @@
+# PHP
+/vendor/
+composer.lock
+
+# Laravel specific
+.env
+.env.*.php
+
+# IDEs & editors
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Node
+/node_modules/
+
+# OS generated
+.DS_Store
+Thumbs.db
+
+# PHPUnit
+.phpunit.result.cache
+
+# Logs and cache
+/storage/*.key
+/storage/logs/*.log
+/storage/framework/cache/data/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/debugbar/*
+
+# Coverage reports
+coverage/
+clover.xml
+phpunit.xml
+
+# Testbench temp files
+.phpunit.cache
+.phpunit.result.cache
+.phpunit-watcher.cache
+
+# Misc
+*.swp
+*.bak
+*.tmp
+*.old
+*.orig
