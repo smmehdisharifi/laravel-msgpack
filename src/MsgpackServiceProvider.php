@@ -7,6 +7,7 @@ use Illuminate\Support\ServiceProvider;
 use SmMehdiSharifi\LaravelMsgpack\Console\BenchmarkCommand;
 use SmMehdiSharifi\LaravelMsgpack\Middleware\MsgpackMiddleware;
 use SmMehdiSharifi\LaravelMsgpack\Support\ContentNegotiator;
+use SmMehdiSharifi\LaravelMsgpack\Support\HttpClientMacro;
 use SmMehdiSharifi\LaravelMsgpack\Support\MsgpackExceptionHandler;
 use SmMehdiSharifi\LaravelMsgpack\Support\RequestMacro;
 use SmMehdiSharifi\LaravelMsgpack\Support\ResponseMacro;
@@ -41,6 +42,10 @@ class MsgpackServiceProvider extends ServiceProvider
 
         ResponseMacro::register($this->app['Illuminate\Contracts\Routing\ResponseFactory']);
         RequestMacro::register();
+        HttpClientMacro::register(
+            $this->app->make(MsgpackManager::class),
+            $this->app->make(ContentNegotiator::class),
+        );
 
         if ($this->app->runningInConsole()) {
             $this->commands([BenchmarkCommand::class]);

@@ -2,11 +2,13 @@
 
 namespace SmMehdiSharifi\LaravelMsgpack\Tests;
 
+use Illuminate\Http\Client\Request as ClientRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Pagination\CursorPaginator;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
 use Orchestra\Testbench\TestCase;
 use RuntimeException;
@@ -172,6 +174,246 @@ class MsgpackTest extends TestCase
             $decoded = Msgpack::decode($encoded);
             $this->assertEquals($input, $decoded);
         }
+    }
+
+    public function test_http_client_negotiates_and_decodes_message_pack_responses(): void
+    {
+        $payload = [
+            'orders' => [
+                ['id' => 1, 'status' => 'paid'],
+            ],
+        ];
+
+        Http::fake([
+            'https://example.test/orders' => Http::response(
+                Msgpack::encode($payload),
+                200,
+                ['Content-Type' => 'application/msgpack; charset=binary'],
+            ),
+        ]);
+
+        $response = Http::msgpack()->get('https://example.test/orders');
+
+        $this->assertSame($payload, $response->msgpack());
+        Http::assertSent(function (ClientRequest $request): bool {
+            return $request->hasHeader('Accept', 'application/msgpack');
+        });
+    }
+
+    public function test_http_client_encodes_message_pack_request_bodies(): void
+    {
+        $payload = [
+            'name' => 'Laravel',
+            'enabled' => true,
+        ];
+
+        Http::fake([
+            'https://example.test/profiles' => Http::response(
+                Msgpack::encode(['created' => true]),
+                201,
+                ['Content-Type' => 'application/msgpack'],
+            ),
+        ]);
+
+        $response = Http::msgpack()
+            ->withMsgpackBody($payload)
+            ->post('https://example.test/profiles');
+
+        $this->assertSame(['created' => true], $response->msgpack());
+        Http::assertSent(function (ClientRequest $request) use ($payload): bool {
+            return $request->method() === 'POST'
+                && $request->hasHeader('Content-Type', 'application/msgpack')
+                && $request->body() === Msgpack::encode($payload);
+        });
+    }
+
+    public function test_http_client_uses_the_configured_message_pack_content_type(): void
+    {
+        $originalContentType = config('msgpack.content_type');
+
+        try {
+            config([
+                'msgpack.content_type' => 'application/vnd.example.msgpack',
+            ]);
+
+            Http::fake([
+                'https://example.test/profile' => Http::response(
+                    Msgpack::encode(['created' => true]),
+                    201,
+                    ['Content-Type' => 'application/vnd.example.msgpack'],
+                ),
+            ]);
+
+            $response = Http::msgpack()
+                ->withMsgpackBody(['name' => 'Laravel'])
+                ->post('https://example.test/profile');
+
+            $this->assertSame(['created' => true], $response->msgpack());
+            Http::assertSent(function (ClientRequest $request): bool {
+                return $request->hasHeader('Accept', 'application/vnd.example.msgpack')
+                    && $request->hasHeader('Content-Type', 'application/vnd.example.msgpack');
+            });
+        } finally {
+            config(['msgpack.content_type' => $originalContentType]);
+        }
+    }
+
+    public function test_http_client_decodes_json_responses_as_a_fallback(): void
+    {
+        Http::fake([
+            'https://example.test/profile' => Http::response([
+                'data' => [
+                    'id' => 42,
+                    'name' => 'Laravel',
+                ],
+            ]),
+        ]);
+
+        $response = Http::msgpack()->get('https://example.test/profile');
+
+        $this->assertSame(['id' => 42, 'name' => 'Laravel'], $response->msgpack('data'));
+        $this->assertSame('Laravel', $response->msgpack('data.name'));
+    }
+
+    public function test_http_client_decodes_legacy_message_pack_response_content_types(): void
+    {
+        Http::fake([
+            'https://example.test/profile' => Http::response(
+                Msgpack::encode(['name' => 'Laravel']),
+                200,
+                ['Content-Type' => 'application/x-msgpack'],
+            ),
+        ]);
+
+        $response = Http::msgpack()->get('https://example.test/profile');
+
+        $this->assertSame(['name' => 'Laravel'], $response->msgpack());
+    }
+
+    public function test_http_client_decodes_json_media_type_suffixes(): void
+    {
+        Http::fake([
+            'https://example.test/problem' => Http::response(
+                ['detail' => 'The profile is invalid.'],
+                422,
+                ['Content-Type' => 'application/problem+json'],
+            ),
+        ]);
+
+        $response = Http::msgpack()->get('https://example.test/problem');
+
+        $this->assertSame('The profile is invalid.', $response->msgpack('detail'));
+    }
+
+    public function test_http_client_rejects_empty_success_responses(): void
+    {
+        Http::fake([
+            'https://example.test/profile' => Http::response('', 200),
+        ]);
+
+        $response = Http::msgpack()->get('https://example.test/profile');
+
+        $this->expectException(\UnexpectedValueException::class);
+        $response->msgpack();
+    }
+
+    public function test_http_client_allows_empty_no_content_responses(): void
+    {
+        foreach ([204, 205, 304] as $status) {
+            Http::fake([
+                'https://example.test/profile' => Http::response('', $status),
+            ]);
+
+            $response = Http::msgpack()->get('https://example.test/profile');
+
+            $this->assertNull($response->msgpack());
+        }
+    }
+
+    public function test_http_client_rejects_invalid_message_pack_responses(): void
+    {
+        Http::fake([
+            'https://example.test/profile' => Http::response(
+                "\xc1",
+                200,
+                ['Content-Type' => 'application/msgpack'],
+            ),
+        ]);
+
+        $response = Http::msgpack()->get('https://example.test/profile');
+
+        $this->expectException(\UnexpectedValueException::class);
+        $response->msgpack();
+    }
+
+    public function test_http_client_applies_the_configured_decode_depth_limit(): void
+    {
+        $originalLimits = config('msgpack.http_client');
+
+        try {
+            config([
+                'msgpack.http_client.max_depth' => 1,
+                'msgpack.http_client.max_nodes' => 0,
+            ]);
+
+            Http::fake([
+                'https://example.test/profile' => Http::response(
+                    Msgpack::encode(['profile' => ['name' => 'Laravel']]),
+                    200,
+                    ['Content-Type' => 'application/msgpack'],
+                ),
+            ]);
+
+            $response = Http::msgpack()->get('https://example.test/profile');
+
+            $this->expectException(\LengthException::class);
+            $response->msgpack();
+        } finally {
+            config(['msgpack.http_client' => $originalLimits]);
+        }
+    }
+
+    public function test_http_client_applies_the_configured_decode_node_limit(): void
+    {
+        $originalLimits = config('msgpack.http_client');
+
+        try {
+            config([
+                'msgpack.http_client.max_depth' => 0,
+                'msgpack.http_client.max_nodes' => 3,
+            ]);
+
+            Http::fake([
+                'https://example.test/profile' => Http::response(
+                    Msgpack::encode(['first' => true, 'second' => true]),
+                    200,
+                    ['Content-Type' => 'application/msgpack'],
+                ),
+            ]);
+
+            $response = Http::msgpack()->get('https://example.test/profile');
+
+            $this->expectException(\LengthException::class);
+            $response->msgpack();
+        } finally {
+            config(['msgpack.http_client' => $originalLimits]);
+        }
+    }
+
+    public function test_http_client_rejects_unknown_response_content_types(): void
+    {
+        Http::fake([
+            'https://example.test/profile' => Http::response(
+                '<html>unsupported</html>',
+                200,
+                ['Content-Type' => 'text/html'],
+            ),
+        ]);
+
+        $response = Http::msgpack()->get('https://example.test/profile');
+
+        $this->expectException(\UnexpectedValueException::class);
+        $response->msgpack();
     }
 
     public function test_response_macro()
