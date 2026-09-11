@@ -31,6 +31,7 @@ The package is deliberately opt-in:
 - Configurable request payload limit with `413` responses
 - Configurable nesting-depth and value-count limits for decoded request payloads
 - Safe refusal of streamed, encoded, and non-JSON responses that cannot be represented as MessagePack
+- Built-in Artisan benchmark for raw and gzip-compressed JSON/MessagePack payloads
 - Laravel service provider and middleware auto-discovery
 - PHP 8.1+ and Laravel 9.x through 12.x
 
@@ -129,6 +130,50 @@ $data = ['name' => 'Laravel', 'type' => 'framework'];
 $packed = Msgpack::encode($data);
 $unpacked = Msgpack::decode($packed);
 ```
+
+## Benchmark
+
+Run the built-in benchmark from a Laravel application's console:
+
+```bash
+php artisan msgpack:benchmark
+```
+
+The command uses a deterministic API-shaped fixture and measures payload size,
+size reduction, encode time, and decode time. It also reports gzip size and
+compression timings when `ext-zlib` is available. JSON uses the default
+`json_encode` options used by Laravel's JSON response factory. Each operation
+is warmed up once before timing, and reported timings are per iteration.
+
+Useful options:
+
+```bash
+php artisan msgpack:benchmark --iterations=5000
+php artisan msgpack:benchmark --iterations=5000 --json
+```
+
+The `--json` option is useful for CI or for recording results over time. An
+indicative table result looks like this; timings depend on the PHP version and host:
+
+```text
+MessagePack benchmark
+Fixture: deterministic_api_payload
+Iterations: 1000
+
+Payload size       JSON       MessagePack   Reduction
+                   591 B      435 B         26.40 %
+Encode time        0.001 ms   0.008 ms
+Decode time        0.003 ms   0.007 ms
+
+Gzip compression (level 6)
+Compressed size    377 B      371 B          1.59 %
+Compress time      0.009 ms   0.010 ms
+Decompress time    0.004 ms   0.003 ms
+```
+
+MessagePack is not automatically faster or smaller for every payload. Use the
+benchmark with data representative of your application before choosing it as a
+transport format.
 
 ## Configuration
 

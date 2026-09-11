@@ -4,6 +4,7 @@ namespace SmMehdiSharifi\LaravelMsgpack;
 
 use Illuminate\Contracts\Debug\ExceptionHandler as ExceptionHandlerContract;
 use Illuminate\Support\ServiceProvider;
+use SmMehdiSharifi\LaravelMsgpack\Console\BenchmarkCommand;
 use SmMehdiSharifi\LaravelMsgpack\Middleware\MsgpackMiddleware;
 use SmMehdiSharifi\LaravelMsgpack\Support\ContentNegotiator;
 use SmMehdiSharifi\LaravelMsgpack\Support\MsgpackExceptionHandler;
@@ -40,5 +41,9 @@ class MsgpackServiceProvider extends ServiceProvider
 
         ResponseMacro::register($this->app['Illuminate\Contracts\Routing\ResponseFactory']);
         RequestMacro::register();
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([BenchmarkCommand::class]);
+        }
     }
 }
