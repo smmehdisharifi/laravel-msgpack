@@ -134,6 +134,32 @@ The macro follows the familiar Laravel response shape:
 response()->msgpack($value, $status = 200, $headers = []);
 ```
 
+## API Resources and Pagination
+
+Laravel JSON resources work with both the middleware and the explicit response
+macro. Resource collections and paginated resources keep their normal
+data, links, and meta structure after MessagePack negotiation:
+
+```php
+use App\Http\Resources\UserResource;
+use App\Models\User;
+use Illuminate\Support\Facades\Route;
+
+Route::middleware('msgpack')->get('/api/users', function () {
+    return UserResource::collection(
+        User::query()->paginate(25),
+    );
+});
+```
+
+Clients that send `Accept: application/msgpack` receive the same resource
+payload as a binary response. Clients that omit the header continue to receive
+the normal JSON representation:
+
+```php
+return response()->msgpack(new UserResource($user));
+```
+
 ## Encode and Decode
 
 The facade is available for direct serialization:

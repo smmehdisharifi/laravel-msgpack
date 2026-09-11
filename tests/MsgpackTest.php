@@ -4,6 +4,9 @@ namespace SmMehdiSharifi\LaravelMsgpack\Tests;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Pagination\CursorPaginator;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Validation\ValidationException;
 use Orchestra\Testbench\TestCase;
 use RuntimeException;
@@ -29,6 +32,53 @@ class MsgpackTest extends TestCase
                 'message' => 'hello',
                 'payload' => $request->msgpack(),
             ]);
+        });
+
+        $router->middleware('msgpack')->get('/resource', function () {
+            return new TestUserResource([
+                'id' => 42,
+                'name' => 'Laravel',
+            ]);
+        });
+
+        $router->middleware('msgpack')->get('/resource-collection', function () {
+            return TestUserResource::collection([
+                ['id' => 1, 'name' => 'One'],
+                ['id' => 2, 'name' => 'Two'],
+            ]);
+        });
+
+        $router->middleware('msgpack')->get('/paginated-resource', function () {
+            $paginator = new LengthAwarePaginator(
+                [
+                    ['id' => 1, 'name' => 'One'],
+                    ['id' => 2, 'name' => 'Two'],
+                ],
+                3,
+                2,
+                1,
+                ['path' => '/paginated-resource'],
+            );
+
+            return TestUserResource::collection($paginator);
+        });
+
+        $router->middleware('msgpack')->get('/cursor-paginated-resource', function () {
+            $paginator = new CursorPaginator(
+                [
+                    ['id' => 1, 'name' => 'One'],
+                    ['id' => 2, 'name' => 'Two'],
+                    ['id' => 3, 'name' => 'Three'],
+                ],
+                2,
+                null,
+                [
+                    'path' => '/cursor-paginated-resource',
+                    'parameters' => ['id'],
+                ],
+            );
+
+            return TestUserResource::collection($paginator);
         });
 
         $router->middleware('msgpack')->post('/payload', function (Request $request) {
@@ -143,6 +193,64 @@ class MsgpackTest extends TestCase
         $this->assertSame('ok', $response->headers->get('X-Test'));
     }
 
+    public function test_response_macro_accepts_a_json_resource(): void
+    {
+        $response = response()->msgpack(new TestUserResource([
+            'id' => 42,
+            'name' => 'Laravel',
+        ]));
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame('application/msgpack', $response->headers->get('Content-Type'));
+        $this->assertSame([
+            'data' => [
+                'id' => 42,
+                'name' => 'Laravel',
+            ],
+        ], Msgpack::decode($response->getContent()));
+    }
+
+    public function test_response_macro_preserves_json_resource_response_metadata(): void
+    {
+        $response = response()->msgpack(new TestResponseMetadataResource([
+            'id' => 42,
+        ]));
+
+        $this->assertSame(202, $response->getStatusCode());
+        $this->assertSame('yes', $response->headers->get('X-Resource'));
+        $this->assertSame('application/msgpack', $response->headers->get('Content-Type'));
+
+        $overridden = response()->msgpack(
+            new TestResponseMetadataResource(['id' => 43]),
+            201,
+            ['X-Resource' => 'override'],
+        );
+
+        $this->assertSame(201, $overridden->getStatusCode());
+        $this->assertSame('override', $overridden->headers->get('X-Resource'));
+    }
+
+    public function test_response_macro_accepts_a_paginated_json_resource(): void
+    {
+        $paginator = new LengthAwarePaginator(
+            [
+                ['id' => 1, 'name' => 'One'],
+                ['id' => 2, 'name' => 'Two'],
+            ],
+            3,
+            2,
+            1,
+            ['path' => '/paginated-resource'],
+        );
+
+        $response = response()->msgpack(TestUserResource::collection($paginator));
+        $payload = Msgpack::decode($response->getContent());
+
+        $this->assertSame(3, $payload['meta']['total']);
+        $this->assertSame(2, $payload['meta']['per_page']);
+        $this->assertArrayHasKey('next', $payload['links']);
+    }
+
     public function test_response_macro_does_not_create_a_body_for_empty_statuses(): void
     {
         $response = response()->msgpack(['ignored' => true], 204);
@@ -208,6 +316,105 @@ class MsgpackTest extends TestCase
             'message' => 'hello',
             'payload' => null,
         ], Msgpack::decode($response->getContent()));
+    }
+
+    public function test_middleware_negotiates_a_json_resource_as_message_pack(): void
+    {
+        $response = $this->withHeaders([
+            'Accept' => 'application/msgpack',
+        ])->get('/resource');
+
+        $response->assertOk();
+        $response->assertHeader('Content-Type', 'application/msgpack');
+        $response->assertHeader('Vary', 'Accept');
+        $this->assertSame([
+            'data' => [
+                'id' => 42,
+                'name' => 'Laravel',
+            ],
+        ], Msgpack::decode($response->getContent()));
+    }
+
+    public function test_middleware_returns_a_json_resource_by_default(): void
+    {
+        $response = $this->get('/resource');
+
+        $response->assertOk();
+        $response->assertHeader('Content-Type', 'application/json');
+        $response->assertJson([
+            'data' => [
+                'id' => 42,
+                'name' => 'Laravel',
+            ],
+        ]);
+    }
+
+    public function test_middleware_preserves_a_json_resource_collection_in_message_pack(): void
+    {
+        $response = $this->withHeaders([
+            'Accept' => 'application/msgpack',
+        ])->get('/resource-collection');
+
+        $response->assertOk();
+        $this->assertSame([
+            'data' => [
+                ['id' => 1, 'name' => 'One'],
+                ['id' => 2, 'name' => 'Two'],
+            ],
+        ], Msgpack::decode($response->getContent()));
+    }
+
+    public function test_middleware_preserves_paginated_resource_metadata_in_message_pack(): void
+    {
+        $response = $this->withHeaders([
+            'Accept' => 'application/msgpack',
+        ])->get('/paginated-resource');
+
+        $response->assertOk();
+        $payload = Msgpack::decode($response->getContent());
+
+        $this->assertSame([
+            ['id' => 1, 'name' => 'One'],
+            ['id' => 2, 'name' => 'Two'],
+        ], $payload['data']);
+        $this->assertSame(3, $payload['meta']['total']);
+        $this->assertSame(2, $payload['meta']['per_page']);
+        $this->assertSame(1, $payload['meta']['current_page']);
+        $this->assertArrayHasKey('next', $payload['links']);
+    }
+
+    public function test_middleware_preserves_cursor_paginated_resource_metadata_in_message_pack(): void
+    {
+        $response = $this->withHeaders([
+            'Accept' => 'application/msgpack',
+        ])->get('/cursor-paginated-resource');
+
+        $response->assertOk();
+        $payload = Msgpack::decode($response->getContent());
+
+        $this->assertSame([
+            ['id' => 1, 'name' => 'One'],
+            ['id' => 2, 'name' => 'Two'],
+        ], $payload['data']);
+        $this->assertSame(2, $payload['meta']['per_page']);
+        $this->assertArrayHasKey('next', $payload['links']);
+    }
+
+    public function test_middleware_returns_a_paginated_json_resource_by_default(): void
+    {
+        $response = $this->get('/paginated-resource');
+
+        $response->assertOk();
+        $response->assertHeader('Content-Type', 'application/json');
+        $response->assertJson([
+            'data' => [
+                ['id' => 1, 'name' => 'One'],
+                ['id' => 2, 'name' => 'Two'],
+            ],
+            'meta' => [
+                'total' => 3,
+            ],
+        ]);
     }
 
     public function test_json_is_preferred_when_it_has_higher_quality(): void
@@ -653,5 +860,38 @@ class MsgpackTest extends TestCase
         $instance2 = $this->app->make('msgpack');
 
         $this->assertSame($instance1, $instance2);
+    }
+}
+
+final class TestUserResource extends JsonResource
+{
+    /**
+     * @return array{id: int, name: string}
+     */
+    public function toArray($request): array
+    {
+        return [
+            'id' => $this->resource['id'],
+            'name' => $this->resource['name'],
+        ];
+    }
+}
+
+final class TestResponseMetadataResource extends JsonResource
+{
+    /**
+     * @return array{id: int}
+     */
+    public function toArray($request): array
+    {
+        return [
+            'id' => $this->resource['id'],
+        ];
+    }
+
+    public function withResponse($request, $response): void
+    {
+        $response->setStatusCode(202);
+        $response->headers->set('X-Resource', 'yes');
     }
 }
