@@ -4,7 +4,6 @@ namespace SmMehdiSharifi\LaravelMsgpack;
 
 use MessagePack\BufferUnpacker;
 use MessagePack\Packer;
-use MessagePack\TypeTransformer\MapTransformer;
 use SmMehdiSharifi\LaravelMsgpack\Support\MessagePackPayloadValidator;
 
 class MsgpackManager
@@ -13,7 +12,13 @@ class MsgpackManager
 
     public function __construct()
     {
-        $this->packer = new Packer(null, [new MapTransformer]);
+        $transformers = [];
+
+        if (class_exists('MessagePack\\TypeTransformer\\MapTransformer')) {
+            $transformers[] = new \MessagePack\TypeTransformer\MapTransformer;
+        }
+
+        $this->packer = new Packer(null, $transformers);
     }
 
     public function encode(mixed $data): string
