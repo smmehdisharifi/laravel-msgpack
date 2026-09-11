@@ -582,6 +582,69 @@ class MsgpackTest extends TestCase
         ], Msgpack::decode($response->getContent()));
     }
 
+    public function test_benchmark_command_outputs_json_metrics(): void
+    {
+        $output = new \Symfony\Component\Console\Output\BufferedOutput;
+        $exitCode = $this->app[\Illuminate\Contracts\Console\Kernel::class]->call('msgpack:benchmark', [
+            '--iterations' => 2,
+            '--json' => true,
+        ], $output);
+        $metrics = json_decode($output->fetch(), true, 512, JSON_THROW_ON_ERROR);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertIsArray($metrics);
+        $this->assertSame(2, $metrics['iterations']);
+        $this->assertSame('deterministic_api_payload', $metrics['fixture']);
+        $this->assertGreaterThan(0, $metrics['raw']['json']['bytes']);
+        $this->assertGreaterThan(0, $metrics['raw']['messagepack']['bytes']);
+        $this->assertArrayHasKey('size_reduction_percent', $metrics['raw']);
+        $this->assertSame(
+            round((1 - ($metrics['raw']['messagepack']['bytes'] / $metrics['raw']['json']['bytes'])) * 100, 2),
+            $metrics['raw']['size_reduction_percent'],
+        );
+
+        if ($metrics['gzip'] !== null) {
+            $this->assertGreaterThan(0, $metrics['gzip']['json']['bytes']);
+            $this->assertGreaterThan(0, $metrics['gzip']['messagepack']['bytes']);
+            $this->assertArrayHasKey('compress_ms_per_iteration', $metrics['gzip']['json']);
+            $this->assertArrayHasKey('decompress_ms_per_iteration', $metrics['gzip']['messagepack']);
+        }
+    }
+
+    public function test_benchmark_command_renders_a_table(): void
+    {
+        $this->artisan('msgpack:benchmark', [
+            '--iterations' => 1,
+        ])
+            ->expectsOutputToContain('MessagePack benchmark')
+            ->expectsOutputToContain('Payload size')
+            ->assertExitCode(0);
+    }
+
+    public function test_benchmark_command_rejects_invalid_iterations(): void
+    {
+        $this->artisan('msgpack:benchmark', [
+            '--iterations' => 0,
+        ])
+            ->expectsOutputToContain('between 1 and')
+            ->assertExitCode(1);
+    }
+
+    public function test_benchmark_command_returns_json_error_for_invalid_iterations(): void
+    {
+        $output = new \Symfony\Component\Console\Output\BufferedOutput;
+        $exitCode = $this->app[\Illuminate\Contracts\Console\Kernel::class]->call('msgpack:benchmark', [
+            '--iterations' => 0,
+            '--json' => true,
+        ], $output);
+        $error = json_decode($output->fetch(), true, 512, JSON_THROW_ON_ERROR);
+
+        $this->assertSame(1, $exitCode);
+        $this->assertIsArray($error);
+        $this->assertArrayHasKey('error', $error);
+        $this->assertStringContainsString('between 1 and', $error['error']);
+    }
+
     public function test_service_provider_registers_singleton()
     {
         $this->assertTrue($this->app->bound('msgpack'));
