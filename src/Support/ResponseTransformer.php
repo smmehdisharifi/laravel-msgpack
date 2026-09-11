@@ -5,9 +5,7 @@ namespace SmMehdiSharifi\LaravelMsgpack\Support;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as IlluminateResponse;
-use MessagePack\Type\Map;
 use SmMehdiSharifi\LaravelMsgpack\MsgpackManager;
-use stdClass;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -189,38 +187,10 @@ final class ResponseTransformer
         }
 
         try {
-            $decoded = json_decode(
-                $content,
-                false,
-                512,
-                JSON_BIGINT_AS_STRING | JSON_THROW_ON_ERROR,
-            );
-
-            return [true, $this->normalizeJsonValue($decoded)];
+            return [true, JsonPayloadDecoder::decode($content)];
         } catch (\JsonException) {
             return [false, null];
         }
-    }
-
-    private function normalizeJsonValue(mixed $value): mixed
-    {
-        if ($value instanceof stdClass) {
-            $map = [];
-
-            foreach (get_object_vars($value) as $key => $child) {
-                $map[$key] = $this->normalizeJsonValue($child);
-            }
-
-            return new Map($map);
-        }
-
-        if (is_array($value)) {
-            foreach ($value as $key => $child) {
-                $value[$key] = $this->normalizeJsonValue($child);
-            }
-        }
-
-        return $value;
     }
 
     private function isBodyless(SymfonyResponse $response): bool
