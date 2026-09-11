@@ -1,0 +1,56 @@
+name: Feature request
+description: Suggest an improvement or new capability for Laravel Msgpack.
+title: "[Feature]: "
+labels:
+  - enhancement
+  - triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Laravel Msgpack. Please focus on the problem before proposing an implementation.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: What problem, limitation, or use case would this feature address?
+      placeholder: I need to ... because ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed_solution
+    attributes:
+      label: Proposed solution
+      description: Describe the behavior or API you would like to see.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Describe any workarounds or alternative approaches you have tried.
+
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Compatibility and API impact
+      description: Explain whether this could affect existing applications, responses, configuration, or supported Laravel versions.
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional context
+      description: Add examples, links, benchmarks, or other context that supports the proposal.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submission checks
+      options:
+        - label: I have searched existing issues and did not find a duplicate.
+          required: true
+        - label: I have explained the user problem, not only the implementation idea.
+          required: true

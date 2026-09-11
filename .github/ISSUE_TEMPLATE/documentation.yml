@@ -1,0 +1,44 @@
+name: Documentation improvement
+description: Report unclear, missing, or incorrect documentation.
+title: "[Docs]: "
+labels:
+  - documentation
+  - triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Clear documentation is part of the public API. Please include the exact location and a concrete improvement.
+
+  - type: input
+    id: location
+    attributes:
+      label: Documentation location
+      description: Provide a URL, file path, or section heading.
+      placeholder: e.g. README.md - Request Decoding
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is unclear or incorrect?
+      description: Explain what a reader may misunderstand or what information is missing.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed_change
+    attributes:
+      label: Suggested improvement
+      description: Provide replacement wording, an example, or a suggested structure.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submission checks
+      options:
+        - label: I have searched existing issues and did not find a duplicate.
+          required: true

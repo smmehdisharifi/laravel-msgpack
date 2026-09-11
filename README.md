@@ -203,14 +203,18 @@ protected $middlewareAliases = [
 
 ```bash
 composer install
-./vendor/bin/phpunit
+./vendor/bin/phpunit tests
 ```
 
 The test suite covers round-trip serialization, response macros, content negotiation, JSON fallback, request decoding, malformed payloads, request limits, status codes, and custom headers.
 
 ## Contributing
 
-Issues and pull requests are welcome. New behavior should include integration tests and an update to the HTTP contract documented above.
+Issues and pull requests are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before starting work.
+
+New behavior should include integration tests and an update to the HTTP contract documented above. Use the repository's issue forms and pull request template so reports and contributions remain consistent.
+
+Security vulnerabilities must be reported privately according to [SECURITY.md](SECURITY.md).
 
 ## License
 
@@ -220,3 +224,7 @@ This package is open-sourced software licensed under the [MIT license](LICENSE).
 
 - [Packagist](https://packagist.org/packages/smmehdisharifi/laravel-msgpack)
 - [GitHub](https://github.com/smmehdisharifi/laravel-msgpack)
+- [Discussions](https://github.com/smmehdisharifi/laravel-msgpack/discussions)
+- [Contributing](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)

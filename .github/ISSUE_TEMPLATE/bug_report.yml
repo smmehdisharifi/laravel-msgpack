@@ -1,0 +1,105 @@
+name: Bug report
+description: Report a reproducible problem in Laravel Msgpack.
+title: "[Bug]: "
+labels:
+  - bug
+  - triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a problem. Please provide enough detail for the issue to be reproduced.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the problem and its impact.
+      placeholder: Tell us what went wrong.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: How can we reproduce it?
+      description: Include the smallest code sample, request, or test case that demonstrates the problem.
+      placeholder: |
+        1. Install ...
+        2. Configure ...
+        3. Run ...
+        4. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+      description: Describe the behavior you expected to see.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead?
+      description: Include the actual output, response, exception, or behavior.
+    validations:
+      required: true
+
+  - type: input
+    id: package_version
+    attributes:
+      label: Laravel Msgpack version
+      placeholder: e.g. 1.2.0 or commit SHA
+    validations:
+      required: true
+
+  - type: input
+    id: php_version
+    attributes:
+      label: PHP version
+      placeholder: e.g. 8.3.10
+    validations:
+      required: true
+
+  - type: input
+    id: laravel_version
+    attributes:
+      label: Laravel version
+      placeholder: e.g. 11.x
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      options:
+        - Linux
+        - macOS
+        - Windows
+        - Docker or CI
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs and stack trace
+      description: Remove secrets and personal data before posting logs.
+      render: shell
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submission checks
+      options:
+        - label: I have searched existing issues and did not find a duplicate.
+          required: true
+        - label: I have included a minimal reproducible example or clear reproduction steps.
+          required: true
+        - label: I have removed secrets and sensitive information from this report.
+          required: true
