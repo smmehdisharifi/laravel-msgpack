@@ -1,39 +1,54 @@
 # Laravel Msgpack
 
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/smmehdisharifi/laravel-msgpack.svg?style=flat-square)](https://packagist.org/packages/smmehdisharifi/laravel-msgpack)
-[![Total Downloads](https://img.shields.io/packagist/dt/smmehdisharifi/laravel-msgpack.svg?style=flat-square)](https://packagist.org/packages/smmehdisharifi/laravel-msgpack)
-[![Tests](https://github.com/smmehdisharifi/laravel-msgpack/actions/workflows/run-tests.yml/badge.svg)](https://github.com/smmehdisharifi/laravel-msgpack/actions/workflows/run-tests.yml)
+<p align="center">
+  <strong>MessagePack content negotiation for Laravel APIs.</strong><br>
+  Keep JSON as the default. Let capable clients opt into compact binary responses without changing controllers.
+</p>
 
-Optional MessagePack content negotiation for Laravel APIs.
+<p align="center">
+  <a href="https://packagist.org/packages/smmehdisharifi/laravel-msgpack"><img src="https://img.shields.io/packagist/v/smmehdisharifi/laravel-msgpack.svg?style=flat-square" alt="Latest Version on Packagist"></a>
+  <a href="https://packagist.org/packages/smmehdisharifi/laravel-msgpack"><img src="https://img.shields.io/packagist/dt/smmehdisharifi/laravel-msgpack.svg?style=flat-square" alt="Total Downloads"></a>
+  <a href="https://github.com/smmehdisharifi/laravel-msgpack/actions/workflows/run-tests.yml"><img src="https://github.com/smmehdisharifi/laravel-msgpack/actions/workflows/run-tests.yml/badge.svg" alt="Tests"></a>
+  <a href="https://packagist.org/packages/smmehdisharifi/laravel-msgpack"><img src="https://img.shields.io/packagist/php-v/smmehdisharifi/laravel-msgpack.svg?style=flat-square" alt="PHP Version"></a>
+  <a href="https://github.com/smmehdisharifi/laravel-msgpack/stargazers"><img src="https://img.shields.io/github/stars/smmehdisharifi/laravel-msgpack?style=flat-square" alt="GitHub Stars"></a>
+  <a href="https://github.com/smmehdisharifi/laravel-msgpack/blob/master/LICENSE"><img src="https://img.shields.io/github/license/smmehdisharifi/laravel-msgpack.svg?style=flat-square" alt="License"></a>
+</p>
 
-Keep JSON as the default. Let capable clients opt into compact binary responses with an `Accept` header, without changing your controllers.
+Laravel Msgpack gives Laravel APIs an opt-in binary representation while preserving JSON for existing clients. Add the middleware to a route or route group, and let each client choose its representation with the `Accept` header.
 
-## Why MessagePack?
+## Why this package?
 
-MessagePack is useful for high-volume APIs, mobile clients, internal services, and bandwidth-constrained applications. It can reduce payload size and parsing overhead while keeping a schema-free data model.
+MessagePack is a compact, schema-free binary format that can reduce wire size for suitable payloads. It is useful for high-volume APIs, mobile clients, internal services, and bandwidth-constrained applications.
 
-The package is deliberately opt-in:
+This package is designed for incremental adoption:
 
 - Existing clients continue to receive JSON.
-- MessagePack clients send `Accept: application/msgpack`.
+- MessagePack clients opt in with `Accept: application/msgpack`.
 - Responses include `Vary: Accept` for correct HTTP caching.
-- Incoming requests accept both `application/msgpack` and the legacy `application/x-msgpack` media type.
-- Error responses follow the same negotiation, including unmatched routes and route exceptions.
+- Requests support both `application/msgpack` and the legacy `application/x-msgpack` media type.
+- Errors follow the same negotiation, including unmatched routes and route exceptions.
+- The benchmark helps you measure your own payloads instead of relying on universal performance claims.
 
 ## Features
 
 - `Accept`-based response negotiation with JSON fallback
-- Standard wildcard and quality-factor handling with `406 Not Acceptable` when both formats are rejected
+- Wildcard and quality-factor handling with `406 Not Acceptable` when every supported format is rejected
 - Request body decoding for MessagePack content types with parameters
 - `response()->msgpack()` with status and custom header support
 - `request()->msgpack()` access to the original decoded payload
 - Safe `400` responses for invalid MessagePack payloads
 - Configurable request payload limit with `413` responses
-- Configurable nesting-depth and value-count limits for decoded request payloads
+- Configurable nesting-depth and value-count limits for decoded payloads
 - Safe refusal of streamed, encoded, and non-JSON responses that cannot be represented as MessagePack
 - Built-in Artisan benchmark for raw and gzip-compressed JSON/MessagePack payloads
 - Laravel service provider and middleware auto-discovery
-- PHP 8.1+ and Laravel 9.x through 12.x
+
+## Compatibility
+
+- PHP 8.1 or newer
+- Laravel 9.x through 12.x
+- `rybakit/msgpack` 0.7 and 0.10
+- Optional `ext-zlib` support for gzip benchmark metrics
 
 ## Installation
 
@@ -43,7 +58,7 @@ composer require smmehdisharifi/laravel-msgpack
 
 ## Quick Start
 
-Apply the middleware to an API route or route group:
+Add the middleware to an API route or route group:
 
 ```php
 use Illuminate\Support\Facades\Route;
@@ -56,30 +71,28 @@ Route::middleware('msgpack')->get('/api/profile', function () {
 });
 ```
 
-A normal client receives JSON:
+No controller changes are required. Clients continue to receive JSON by default:
 
-```http
-GET /api/profile HTTP/1.1
-Accept: application/json
+```bash
+curl -i http://localhost/api/profile
 ```
 
-A MessagePack-aware client receives a binary response:
+A MessagePack-aware client opts into a binary response:
 
-```http
-GET /api/profile HTTP/1.1
-Accept: application/msgpack
+```bash
+curl -i -H 'Accept: application/msgpack' http://localhost/api/profile
 ```
 
-The response uses:
+The negotiated response includes:
 
 ```http
 Content-Type: application/msgpack
 Vary: Accept
 ```
 
-JSON remains the fallback when MessagePack is not selected. If both formats are accepted, the higher `q` value wins; media-type wildcards are evaluated according to their specificity. A `406 Not Acceptable` response is returned when the client explicitly rejects every supported format.
+If both formats are accepted, the higher `q` value wins and media-type wildcards are evaluated by specificity. The package returns `406 Not Acceptable` when the client explicitly rejects every supported format.
 
-The configured `content_type` is also accepted as an explicit MessagePack response format. Additional entries in `accept_content_types`, such as the legacy `application/x-msgpack` type, are preserved when selected. The response macro always uses the configured `content_type`.
+The configured `content_type` is accepted as an explicit MessagePack response format. Additional entries in `accept_content_types`, such as the legacy `application/x-msgpack` type, are preserved when selected. The response macro always uses the configured `content_type`.
 
 ## Request Decoding
 
@@ -252,6 +265,10 @@ composer install
 ```
 
 The test suite covers round-trip serialization, response macros, content negotiation, JSON fallback, request decoding, malformed payloads, request limits, status codes, and custom headers.
+
+## Support the Project
+
+If this package helps your API, a GitHub star helps other Laravel developers discover it. Bug reports, feature ideas, documentation improvements, and real-world benchmark results are welcome.
 
 ## Contributing
 
