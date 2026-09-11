@@ -24,6 +24,22 @@ final class HttpClientMacro
             return $mediaType === 'application/json' || str_ends_with($mediaType, '+json');
         };
 
+        /**
+         * @return array{max_depth: int, max_nodes: int}
+         */
+        $httpClientDecodeLimits = static function (): array {
+            return [
+                'max_depth' => (int) config(
+                    'msgpack.http_client.max_depth',
+                    config('msgpack.max_depth', 0),
+                ),
+                'max_nodes' => (int) config(
+                    'msgpack.http_client.max_nodes',
+                    config('msgpack.max_nodes', 0),
+                ),
+            ];
+        };
+
         if (! PendingRequest::hasMacro('acceptMsgpack')) {
             PendingRequest::macro('acceptMsgpack', function () {
                 return $this->accept(config('msgpack.content_type', 'application/msgpack'));
@@ -41,29 +57,42 @@ final class HttpClientMacro
 
         if (! HttpFactory::hasMacro('msgpack')) {
             HttpFactory::macro('msgpack', function () {
-                return $this->createPendingRequest()->acceptMsgpack();
+                return $this->acceptMsgpack();
             });
         }
 
         if (! HttpResponse::hasMacro('msgpack')) {
-            HttpResponse::macro('msgpack', function (?string $key = null, mixed $default = null) use ($manager, $negotiator, $isJsonContentType) {
-                $body = $this->body();
-                $contentType = $this->header('Content-Type');
+            HttpResponse::macro(
+                'msgpack',
+                function (?string $key = null, mixed $default = null) use ($manager, $negotiator, $isJsonContentType, $httpClientDecodeLimits) {
+                    $body = $this->body();
+                    $contentType = $this->header('Content-Type');
 
-                if ($body === '') {
-                    $payload = null;
-                } elseif ($negotiator->isMessagePackResponseContentType($contentType)) {
-                    $payload = $manager->decode($body);
-                } elseif ($isJsonContentType($contentType)) {
-                    $payload = $this->json();
-                } else {
-                    throw new \UnexpectedValueException(
-                        'The response content type cannot be decoded as MessagePack or JSON.',
-                    );
-                }
+                    if ($body === '') {
+                        if (! in_array($this->status(), [204, 205, 304], true)) {
+                            throw new \UnexpectedValueException('The response body is empty.');
+                        }
 
-                return $key === null ? $payload : data_get($payload, $key, $default);
-            });
+                        $payload = null;
+                    } elseif ($negotiator->isMessagePackResponseContentType($contentType)) {
+                        $limits = $httpClientDecodeLimits();
+
+                        $payload = $manager->decode(
+                            $body,
+                            $limits['max_depth'],
+                            $limits['max_nodes'],
+                        );
+                    } elseif ($isJsonContentType($contentType)) {
+                        $payload = $this->json();
+                    } else {
+                        throw new \UnexpectedValueException(
+                            'The response content type cannot be decoded as MessagePack or JSON.',
+                        );
+                    }
+
+                    return $key === null ? $payload : data_get($payload, $key, $default);
+                },
+            );
         }
     }
 }

@@ -197,6 +197,11 @@ Laravel's normal JSON response decoding when the response has a JSON media
 type. Responses with an unsupported media type throw an
 `UnexpectedValueException`. The helpers use Laravel's normal HTTP client
 request and retry behavior; they do not add retries for unsafe requests.
+MessagePack responses are validated with the configured
+`http_client.max_depth` and `http_client.max_nodes` limits before they are
+materialized. Set either value to `0` or `null` to disable that guard. An
+empty body returns `null` for `204`, `205`, and `304` responses; other empty
+responses throw `UnexpectedValueException`.
 
 ## Benchmark
 
@@ -282,10 +287,15 @@ return [
     'max_depth' => 64,
 
     'max_nodes' => 100000,
+
+    'http_client' => [
+        'max_depth' => 64,
+        'max_nodes' => 100000,
+    ],
 ];
 ```
 
-Set `max_request_size`, `max_depth`, or `max_nodes` to `0` or `null` to disable that package-level guard. The request-size check reads at most one byte beyond the configured limit and also rejects a larger declared `Content-Length` before decoding. Depth and value-count limits are checked while scanning the MessagePack value before it is materialized. Web-server and Laravel limits may still apply.
+Set `max_request_size`, `max_depth`, `max_nodes`, `http_client.max_depth`, or `http_client.max_nodes` to `0` or `null` to disable that package-level guard. The request-size check reads at most one byte beyond the configured limit and also rejects a larger declared `Content-Length` before decoding. Depth and value-count limits are checked while scanning the MessagePack value before it is materialized. Web-server and Laravel limits may still apply.
 
 Responses selected as MessagePack must be JSON representations or already-encoded MessagePack responses. HTML, streamed responses, and responses with `Content-Encoding` return `406` instead of sending a body in an unexpected format. Representation-specific headers such as `ETag`, `Digest`, and `Content-MD5` are removed when the JSON body is re-encoded.
 
