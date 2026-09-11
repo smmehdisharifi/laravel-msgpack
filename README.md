@@ -45,7 +45,7 @@ This package is designed for incremental adoption:
 
 ## Compatibility
 
-- PHP 8.1 through 8.4 tested in CI
+- PHP 8.1 through 8.5 tested in CI
 - Laravel 9.x through 12.x
 - `rybakit/msgpack` 0.7 and 0.10
 - Optional `ext-zlib` support for gzip benchmark metrics
