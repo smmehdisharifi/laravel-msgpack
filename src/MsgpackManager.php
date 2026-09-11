@@ -2,8 +2,10 @@
 
 namespace SmMehdiSharifi\LaravelMsgpack;
 
-use MessagePack\Packer;
 use MessagePack\BufferUnpacker;
+use MessagePack\Packer;
+use MessagePack\TypeTransformer\MapTransformer;
+use SmMehdiSharifi\LaravelMsgpack\Support\MessagePackPayloadValidator;
 
 class MsgpackManager
 {
@@ -11,7 +13,7 @@ class MsgpackManager
 
     public function __construct()
     {
-        $this->packer = new Packer();
+        $this->packer = new Packer(null, [new MapTransformer]);
     }
 
     public function encode(mixed $data): string
@@ -19,10 +21,20 @@ class MsgpackManager
         return $this->packer->pack($data);
     }
 
-    public function decode(string $msgpack): mixed
+    public function decode(string $msgpack, int $maxDepth = 0, int $maxNodes = 0): mixed
     {
-        $unpacker = new BufferUnpacker();
+        if ($maxDepth > 0 || $maxNodes > 0) {
+            (new MessagePackPayloadValidator($msgpack, $maxDepth, $maxNodes))->validate();
+        }
+
+        $unpacker = new BufferUnpacker;
         $unpacker->reset($msgpack);
-        return $unpacker->unpack();
+        $decoded = $unpacker->unpack();
+
+        if ($unpacker->hasRemaining()) {
+            throw new \UnexpectedValueException('The MessagePack payload contains trailing data.');
+        }
+
+        return $decoded;
     }
 }
