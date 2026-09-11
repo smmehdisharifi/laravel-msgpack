@@ -36,6 +36,7 @@ This package is designed for incremental adoption:
 - Request body decoding for MessagePack content types with parameters
 - `response()->msgpack()` with status and custom header support
 - `request()->msgpack()` access to the original decoded payload
+- Laravel HTTP Client helpers for MessagePack requests and responses
 - Safe `400` responses for invalid MessagePack payloads
 - Configurable request payload limit with `413` responses
 - Configurable nesting-depth and value-count limits for decoded payloads
@@ -172,6 +173,30 @@ $data = ['name' => 'Laravel', 'type' => 'framework'];
 $packed = Msgpack::encode($data);
 $unpacked = Msgpack::decode($packed);
 ```
+
+## Laravel HTTP Client
+
+The package also provides opt-in helpers for Laravel applications that consume
+MessagePack APIs. `Http::msgpack()` advertises MessagePack through the
+`Accept` header, while `withMsgpackBody()` encodes a request body and sets its
+`Content-Type`:
+
+```php
+use Illuminate\Support\Facades\Http;
+
+$response = Http::msgpack()->get('https://api.example.test/orders');
+$orders = $response->msgpack('orders', []);
+
+$response = Http::msgpack()
+    ->withMsgpackBody(['name' => 'Laravel'])
+    ->post('https://api.example.test/profiles');
+```
+
+`$response->msgpack()` decodes MessagePack responses and falls back to
+Laravel's normal JSON response decoding when the response has a JSON media
+type. Responses with an unsupported media type throw an
+`UnexpectedValueException`. The helpers use Laravel's normal HTTP client
+request and retry behavior; they do not add retries for unsafe requests.
 
 ## Benchmark
 
