@@ -45,7 +45,7 @@ This package is designed for incremental adoption:
 
 ## Compatibility
 
-- PHP 8.1 or newer
+- PHP 8.1 through 8.4 tested in CI
 - Laravel 9.x through 12.x
 - `rybakit/msgpack` 0.7 and 0.10
 - Optional `ext-zlib` support for gzip benchmark metrics
@@ -80,10 +80,13 @@ curl -i http://localhost/api/profile
 A MessagePack-aware client opts into a binary response:
 
 ```bash
-curl -i -H 'Accept: application/msgpack' http://localhost/api/profile
+curl -sS -D - \
+  -H 'Accept: application/msgpack' \
+  -o profile.msgpack \
+  http://localhost/api/profile
 ```
 
-The negotiated response includes:
+The headers are printed to the terminal and the binary response body is saved to `profile.msgpack`:
 
 ```http
 Content-Type: application/msgpack
@@ -268,7 +271,7 @@ The test suite covers round-trip serialization, response macros, content negotia
 
 ## Support the Project
 
-If this package helps your API, a GitHub star helps other Laravel developers discover it. Bug reports, feature ideas, documentation improvements, and real-world benchmark results are welcome.
+If this package helps your API, [star the repository](https://github.com/smmehdisharifi/laravel-msgpack/stargazers) to help other Laravel developers discover it. Bug reports, feature ideas, documentation improvements, and real-world benchmark results are welcome.
 
 ## Contributing
 
