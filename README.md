@@ -191,6 +191,17 @@ MessagePack is not automatically faster or smaller for every payload. Use the
 benchmark with data representative of your application before choosing it as a
 transport format.
 
+## Benchmark Article
+
+Read the full comparison, including the measured trade-offs between raw and
+gzip-compressed payloads:
+
+- [JSON vs MessagePack in Laravel: A Practical API Benchmark](https://dev.to/smmehdisharifi/json-vs-messagepack-in-laravel-a-practical-api-benchmark-3od9)
+- [Laravel middleware documentation](https://laravel.com/docs/12.x/middleware)
+- [MessagePack specification](https://github.com/msgpack/msgpack/blob/master/spec.md)
+- [`json_encode` in the PHP manual](https://www.php.net/manual/en/function.json-encode.php)
+- [`gzencode` in the PHP manual](https://www.php.net/manual/en/function.gzencode.php)
+
 ## Configuration
 
 Publish the configuration file:
